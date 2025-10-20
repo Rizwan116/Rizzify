@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Capture with Details</title>
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+      margin: 20px;
+    }
+    video, canvas {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 10px;
+    }
+    button {
+      background: #007BFF;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>📸 Capture Photo with Details</h2>
+  <video id="camera" autoplay playsinline></video><br>
+  <button id="capture">Capture & Upload</button>
+  <canvas id="photo" style="display:none;"></canvas>
+
+  <form id="uploadForm" method="POST" action="/upload" enctype="multipart/form-data">
+    <input type="file" name="photo" id="fileInput" style="display:none;">
+    <input type="hidden" name="name" id="nameInput" value="Guest User">
+    <input type="hidden" name="location" id="locationInput">
+  </form>
+
+  <script>
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('photo');
+    const captureBtn = document.getElementById('capture');
+    const uploadForm = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const locationInput = document.getElementById('locationInput');
+
+    // Access camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => alert("Error accessing camera: " + err));
+
+    // Get device location
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+
+          // Convert coordinates to readable address
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+          const data = await response.json();
+          const address = data.display_name || `Lat: ${lat}, Lon: ${lon}`;
+          locationInput.value = address;
+        }, (err) => {
+          alert("Location access denied or unavailable.");
+          locationInput.value = "Location unavailable";
+        });
+      } else {
+        alert("Geolocation not supported by this browser.");
+      }
+    }
+
+    getLocation();
+
+    // Capture photo and upload
+    captureBtn.addEventListener('click', () => {
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(blob => {
+        const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        uploadForm.submit();
+      }, 'image/jpeg');
+    });
+  </script>
+</body>
+</html>
